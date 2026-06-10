@@ -1,0 +1,48 @@
+/* ═══════════ tokens.css — CON-002 milky-white theme token system
+ * Source of truth for all Constellation dashboard colour tokens.
+ * Loaded via <link> in index.html before constellation.css to avoid FOUC.
+ * Do NOT duplicate these tokens in constellation.css.
+ */
+
+/* ── Milky-white canvas palette ── */
+:root {
+  /* Base canvas */
+  --constellation-bg:           #FAF8F3;
+  --constellation-dot:          #E8E2D8;
+  --constellation-line:         #D8D3C9;
+  --constellation-line-soft:    #E7E1D8;
+
+  /* Text */
+  --constellation-text:         #2C2A27;
+  --constellation-text-muted:   #6E675F;
+
+  /* Pulse / accent glow */
+  --constellation-pulse:        #FFB347;
+  --constellation-pulse-glow:   #FFD3A3;
+
+  /* Accent for traffic edges */
+  --constellation-accent:       #5b8def;
+
+  /* Anchor tints */
+  --constellation-kitt:         #F0B38D;
+  --constellation-hermes:       #E3C89A;
+  --constellation-forge:        #D8A27B;
+
+  /* Executor tints */
+  --constellation-claude:       #CDB7E8;
+  --constellation-opencode:     #AFC4E8;
+
+  /* Sub-agent / child-agent tint */
+  --constellation-subagent:     #D7E2C5;
+
+  /* Special agent types (KITT sub-agents) */
+  --constellation-life-os:      #B8D9C8;
+  --constellation-rookery:      #C9D4E8;
+
+  /* Shared rendering tokens (used in JS-rendered SVG attributes) */
+  --constellation-border:       #E5DED4;
+  --constellation-shadow:       #DCCFBD;
+
+  /* State alias: CON-006 will use this to recolour active-edge pulses */
+  --agent-active:               var(--constellation-pulse);
+}

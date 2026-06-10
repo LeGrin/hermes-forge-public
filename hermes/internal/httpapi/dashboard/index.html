@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hermes Dashboard</title>
+<style>
+:root {
+  --bg: #0d1117; --surface: #161b22; --surface-2: #1a2029; --border: #30363d;
+  --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --purple: #bc8cff; --cyan: #56d4dd;
+}
+
+/* Force topology tooltip */
+.force-tooltip {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.8rem;
+  color: var(--text);
+  pointer-events: none;
+  z-index: 200;
+  display: none;
+  max-width: 220px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.force-tooltip strong { display: block; margin-bottom: 0.3rem; font-size: 0.9rem; }
+.force-tooltip .tt-zone { display: inline-block; margin-left: 0.5rem; padding: 0.1rem 0.4rem; background: var(--surface-2); border-radius: 4px; font-size: 0.7rem; color: var(--muted); }
+.force-tooltip .tt-row { display: block; color: var(--muted); margin-top: 0.2rem; }
+.force-tooltip .tt-row em { color: var(--text); font-style: normal; }
+
+/* Lifecycle filter chips */
+.filter-chips {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.chip {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.chip:hover { border-color: var(--accent); color: var(--text); }
+.chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+.chip .chip-count {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 999px;
+  font-size: 0.7rem;
+}
+
+/* Envelope status chips */
+.env-chips {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.env-chip {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  position: relative;
+}
+.env-chip:hover { border-color: var(--accent); color: var(--text); }
+.env-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+.env-chip .chip-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--red);
+  border-radius: 999px;
+  font-size: 0.65rem;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.env-chip.active .chip-badge { background: rgba(255,255,255,0.3); }
+
+/* Session auto-refresh indicator */
+.refresh-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  display: inline-block;
+  margin-right: 6px;
+  transition: background 0.3s ease;
+}
+.refresh-indicator.live { background: var(--green); }
+
+/* Event icons in activity stream */
+.event-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.event-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* Login */
+#login { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+#login form { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; width: 360px; }
+#login h2 { margin-bottom: 1rem; font-size: 1.2rem; }
+#login input { width: 100%; padding: 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.9rem; margin-bottom: 1rem; }
+#login button { width: 100%; padding: 0.6rem; background: var(--accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 600; }
+#login button:hover { opacity: 0.9; }
+#login .error { color: var(--red); font-size: 0.8rem; margin-bottom: 0.5rem; display: none; }
+
+/* App */
+#app { display: none; }
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0.8rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+header h1 { font-size: 1rem; font-weight: 600; }
+header .meta { color: var(--muted); font-size: 0.8rem; font-family: ui-monospace, monospace; }
+header .spacer { flex: 1; }
+header button { background: none; border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+header button:hover { color: var(--text); border-color: var(--accent); }
+
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--surface); }
+.tab { padding: 0.6rem 1.2rem; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; font-size: 0.85rem; background: none; border-top: none; border-left: none; border-right: none; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab .badge { display: inline-block; margin-left: 0.4rem; padding: 0.1rem 0.4rem; font-size: 0.7rem; background: var(--surface-2); border-radius: 999px; color: var(--muted); font-weight: 600; }
+
+.panel { display: none; padding: 1rem 1.5rem; }
+.panel.active { display: block; }
+
+/* Activity stream */
+#activity-stream, #envelope-list, #session-list, #inbox-list { max-height: calc(100vh - 160px); overflow-y: auto; }
+.event { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.8rem; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.event .kind { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; flex-shrink: 0; }
+.kind-tool_use { background: #1f3a5f; color: var(--accent); }
+.kind-status { background: #1a3a1a; color: var(--green); }
+.kind-decision { background: #2d1f4e; color: var(--purple); }
+.kind-heartbeat { background: #2d2a1a; color: var(--yellow); }
+.kind-default { background: #21262d; color: var(--muted); }
+.event .summary { flex: 1; font-size: 0.85rem; }
+.event .time { color: var(--muted); font-size: 0.75rem; flex-shrink: 0; }
+.event .key-tag { color: var(--muted); font-size: 0.7rem; font-family: ui-monospace, monospace; flex-shrink: 0; }
+#sse-status { padding: 0.5rem 0; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+#sse-status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.dot-connected { background: var(--green); }
+.dot-disconnected { background: var(--red); }
+
+/* Toolbar inside panels */
+.toolbar { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; align-items: center; flex-wrap: wrap; }
+.toolbar input[type=search] { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.85rem; min-width: 200px; }
+.toolbar select, .toolbar button { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.7rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; }
+.toolbar button:hover, .toolbar select:hover { border-color: var(--accent); }
+.toolbar .count { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
+
+/* Envelopes + sessions cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.12s ease; }
+.card:hover { border-color: var(--accent); }
+.card .row { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
+.card .title { font-weight: 600; font-size: 0.9rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .id { color: var(--muted); font-size: 0.72rem; font-family: ui-monospace, monospace; }
+.card .meta-row { display: flex; gap: 0.8rem; margin-top: 0.4rem; font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; }
+.card .meta-row .label { color: var(--text); }
+.status-badge { font-size: 0.7rem; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight: 600; text-transform: uppercase; white-space: nowrap; }
+.status-created { background: #21262d; color: var(--muted); }
+.status-delivered { background: #1f3a5f; color: var(--accent); }
+.status-read, .status-in_progress, .status-active { background: #1a3a1a; color: var(--green); }
+.status-paused, .status-blocked { background: #2d2a1a; color: var(--yellow); }
+.status-done, .status-closed { background: #1a3a1a; color: var(--green); }
+.status-failed, .status-lost { background: #3d1a1a; color: var(--red); }
+.status-awaiting_confirm { background: #2d1f4e; color: var(--purple); }
+.status-loop_detected { background: #3d1a1a; color: var(--red); }
+.status-session_message { background: #1f3a5f; color: var(--accent); }
+.status-session_decision { background: #2d1f4e; color: var(--purple); }
+
+.empty { text-align: center; padding: 3rem; color: var(--muted); }
+
+/* Detail modal */
+#detail-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 100; border: none; cursor: default; }
+#detail-panel { position: fixed; top: 0; right: 0; width: 560px; max-width: 95vw; height: 100vh; background: var(--surface); border-left: 1px solid var(--border); z-index: 101; overflow-y: auto; padding: 1.5rem; display: none; }
+#detail-panel .close { float: right; background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height: 1; }
+#detail-panel h3 { margin-bottom: 0.3rem; font-size: 1.05rem; word-break: break-all; }
+#detail-panel .subtitle { color: var(--muted); font-size: 0.8rem; font-family: ui-monospace, monospace; margin-bottom: 1rem; }
+#detail-panel .section-h { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 1rem 0 0.4rem; }
+#detail-panel pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem; font-size: 0.78rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+
+/* Compose area (CON-012) */
+.compose-wrap { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.8rem; }
+.compose-row { display: flex; gap: 0.5rem; align-items: flex-start; }
+.compose-textarea { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.5rem; font-size: 0.85rem; resize: vertical; font-family: inherit; }
+.compose-controls { display: flex; flex-direction: column; gap: 0.4rem; }
+.compose-kind { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.5rem; border-radius: 6px; font-size: 0.82rem; cursor: pointer; }
+.compose-send { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.82rem; font-weight: 600; }
+.compose-send:disabled { opacity: 0.55; cursor: not-allowed; }
+.compose-error { color: var(--red); font-size: 0.8rem; display: none; }
+.compose-error.is-visible { display: block; }
+
+/* Session messages thread (with reply_to indentation) */
+.msg { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.8rem; margin-top: 0.4rem; font-size: 0.82rem; }
+.msg.indent-1 { margin-left: 1.2rem; border-left: 2px solid var(--purple); }
+.msg.indent-2 { margin-left: 2.4rem; border-left: 2px solid var(--cyan); }
+.msg.indent-3 { margin-left: 3.6rem; border-left: 2px solid var(--green); }
+.msg .head { display: flex; gap: 0.6rem; align-items: center; margin-bottom: 0.3rem; font-size: 0.75rem; color: var(--muted); }
+.msg .from { font-weight: 600; color: var(--text); }
+.msg .kind-tag { padding: 0.1rem 0.4rem; border-radius: 3px; font-size: 0.68rem; text-transform: uppercase; font-weight: 600; }
+.msg-kind-decision { background: #2d1f4e; color: var(--purple); }
+.msg-kind-steer { background: #1f3a5f; color: var(--accent); }
+.msg-kind-reply { background: #1a3a1a; color: var(--green); }
+.msg .text { white-space: pre-wrap; word-break: break-word; }
+
+/* Two-column summary on envelope/session detail */
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.8rem; font-size: 0.82rem; margin-bottom: 0.4rem; }
+.kv dt { color: var(--muted); }
+.kv dd { color: var(--text); font-family: ui-monospace, monospace; word-break: break-all; }
+</style>
+<!-- Constellation token system (CON-002) -->
+<link rel="stylesheet" href="tokens.css">
+<!-- Constellation SVG topology (CON-001) -->
+<link rel="stylesheet" href="constellation.css">
+</head>
+<body>
+
+<!-- Icon symbol library — CON-002: loaded from constellation-icons.svg -->
+<div id="icon-lib-placeholder" style="display:none"></div>
+<script>
+(function() {
+  var r = new XMLHttpRequest();
+  r.open('GET', 'constellation-icons.svg', true);
+  r.onload = function() { if (r.status === 200) { var p = document.getElementById('icon-lib-placeholder'); p.outerHTML = r.responseText; } };
+  r.send();
+})();
+</script>
+
+<!-- Login screen -->
+<div id="login">
+  <form onsubmit="handleLogin(event)">
+    <h2>Hermes Dashboard</h2>
+    <div class="error" id="login-error">Invalid API key</div>
+    <input type="text" id="key-input" placeholder="hk_..." autocomplete="off" autofocus>
+    <button type="submit">Connect</button>
+  </form>
+</div>
+
+<!-- App -->
+<div id="app">
+  <header>
+    <h1>Hermes</h1>
+    <div class="meta" id="header-meta"></div>
+    <div class="spacer"></div>
+    <button onclick="refreshAll()">Refresh</button>
+    <button onclick="logout()">Logout</button>
+  </header>
+  <div class="tabs">
+    <button class="tab active" data-tab="constellation" onclick="switchTab('constellation')">⭐ Constellation <span class="badge" id="badge-agents">0</span></button>
+    <button class="tab" data-tab="inbox" onclick="switchTab('inbox')">Inbox <span class="badge" id="badge-inbox">0</span></button>
+    <button class="tab" data-tab="activity" onclick="switchTab('activity')">Activity</button>
+    <button class="tab" data-tab="envelopes" onclick="switchTab('envelopes')">Envelopes <span class="badge" id="badge-envelopes">0</span></button>
+    <button class="tab" data-tab="sessions" onclick="switchTab('sessions')">Sessions <span class="badge" id="badge-sessions">0</span></button>
+  </div>
+  <div class="panel active" id="panel-constellation">
+    <div class="toolbar">
+      <div id="sse-status-mini"><span class="dot dot-disconnected"></span><span id="sse-label">connecting</span></div>
+      <div class="filter-chips" id="lifecycle-filters">
+        <span class="chip active" data-filter="active" onclick="toggleLifecycleFilter('active')">Active<span class="chip-count" id="count-active">0</span></span>
+        <span class="chip active" data-filter="idle" onclick="toggleLifecycleFilter('idle')">Idle<span class="chip-count" id="count-idle">0</span></span>
+        <span class="chip active" data-filter="old" onclick="toggleLifecycleFilter('old')">Old<span class="chip-count" id="count-old">0</span></span>
+      </div>
+      <span class="count" id="agents-count"></span>
+      <button onclick="loadAgents()" style="margin-left:auto">Refresh</button>
+    </div>
+    <div id="constellation"></div>
+  </div>
+  <div class="panel" id="panel-activity">
+    <div id="sse-status"><span class="dot dot-disconnected"></span>Connecting...</div>
+    <div id="activity-stream"></div>
+  </div>
+  <div class="panel" id="panel-inbox">
+    <div class="toolbar">
+      <input type="search" id="inbox-filter" placeholder="Filter by envelope, status, note…" oninput="renderInbox()">
+      <button onclick="ackVisibleInbox()">Ack Visible</button>
+      <span class="count" id="inbox-count"></span>
+    </div>
+    <div id="inbox-list"></div>
+  </div>
+  <div class="panel" id="panel-envelopes">
+    <div class="toolbar">
+      <input type="search" id="env-filter" placeholder="Filter by id, title, project…" oninput="renderEnvelopes()">
+      <div class="env-chips" id="env-chips">
+        <span class="env-chip" data-status="all" onclick="setEnvFilter('all')">All<span class="chip-badge" id="badge-all">0</span></span>
+        <span class="env-chip active" data-status="active" onclick="setEnvFilter('active')">Active<span class="chip-badge" id="badge-active">0</span></span>
+        <span class="env-chip" data-status="done" onclick="setEnvFilter('done')">Done<span class="chip-badge" id="badge-done">0</span></span>
+        <span class="env-chip" data-status="blocked" onclick="setEnvFilter('blocked')">Blocked<span class="chip-badge" id="badge-blocked">0</span></span>
+        <span class="env-chip" data-status="failed" onclick="setEnvFilter('failed')">Failed<span class="chip-badge" id="badge-failed">0</span></span>
+      </div>
+      <span class="count" id="env-count"></span>
+    </div>
+    <div id="envelope-list"></div>
+  </div>
+  <div class="panel" id="panel-sessions">
+    <div class="toolbar">
+      <span class="refresh-indicator" id="sess-refresh-dot"></span>
+      <span id="sess-auto-label" style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem;">auto-refresh 10s</span>
+      <input type="search" id="sess-filter" placeholder="Filter by id, title, project…" oninput="renderSessions()">
+      <span class="count" id="sess-count"></span>
+    </div>
+    <div id="session-list"></div>
+  </div>
+</div>
+
+<!-- Detail panel -->
+<button id="detail-overlay" onclick="closeDetail()" aria-label="Close detail panel"></button>
+<div id="detail-panel">
+  <button class="close" onclick="closeDetail()">&times;</button>
+  <h3 id="detail-title">Details</h3>
+  <div class="subtitle mono" id="detail-subtitle"></div>
+  <div id="detail-body"></div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+let apiKey = localStorage.getItem('hermes_key') || '';
+let evtSource = null;
+let envelopesCache = [];
+let sessionsCache = [];
+let inboxCache = [];
+let agentsCache = [];
+let agentsPoll = null;
+let appShown = false;
+let openEnvelopeId = '';
+let refreshOpenThread = null;
+let threadPollInterval = null;
+window.currentEnvFilter = 'active';
+
+window.addEventListener('load', function() {
+  if (apiKey) showApp();
+});
+
+function handleLogin(e) {
+  e.preventDefault();
+  const key = document.getElementById('key-input').value.trim();
+  if (!key) return;
+  fetch(API_BASE + '/activity', { headers: { 'X-Hermes-Key': key } })
+    .then(r => {
+      if (r.ok) {
+        apiKey = key;
+        localStorage.setItem('hermes_key', key);
+        showApp();
+      } else {
+        document.getElementById('login-error').style.display = 'block';
+      }
+    })
+    .catch(() => {
+      document.getElementById('login-error').textContent = 'Connection failed';
+      document.getElementById('login-error').style.display = 'block';
+    });
+}
+
+function logout() {
+  resetEnvelopeDetailState();
+  localStorage.removeItem('hermes_key');
+  apiKey = '';
+  if (evtSource) { evtSource.close(); evtSource = null; }
+  stopSessionsPoll(); // Stop session auto-refresh polling
+  stopActivityStaleTimer(); // Stop activity stale timer
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login').style.display = 'flex';
+  document.getElementById('key-input').value = '';
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function showApp() {
+  if (appShown) return;
+  appShown = true;
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('header-meta').textContent = apiKey.slice(0, 10) + '…';
+  initEnvFilter();
+  connectSSE();
+  loadRecentActivity();
+  loadInbox();
+  loadEnvelopes();
+  loadSessions();
+  loadAgents();
+  // Refresh the constellation every 20s even without SSE pokes, so
+  // CPU/state dots stay fresh between the 60s reporter snapshots.
+  if (agentsPoll) clearInterval(agentsPoll);
+  agentsPoll = setInterval(loadAgents, 20000);
+  // Initialize lifecycle filter chips and envelope filter
+  if (typeof Filters !== 'undefined') {
+    updateLifecycleChips(Filters.loadFilters());
+  }
+  // Start sessions auto-refresh
+  startSessionsPoll();
+  // Start activity stale timer (checks every 30s)
+  startActivityStaleTimer();
+}
+
+function refreshAll() { loadRecentActivity(); loadInbox(); loadEnvelopes(); loadSessions(); loadAgents(); }
+
+/* --- SSE --- */
+function connectSSE() {
+  if (evtSource) evtSource.close();
+  const ctrl = new AbortController();
+  fetch(API_BASE + '/events', {
+    headers: { 'X-Hermes-Key': apiKey },
+    signal: ctrl.signal,
+  }).then(response => {
+    if (!response.ok) throw new Error('SSE failed: ' + response.status);
+    setSseStatus(true);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    function read() {
+      reader.read().then(({ done, value }) => {
+        if (done) { setSseStatus(false); setTimeout(connectSSE, 3000); return; }
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const evt = JSON.parse(line.slice(6));
+              prependEvent(evt);
+              // SSE events often correspond to envelope/session state changes — reload lightly.
+              if (['status', 'decision'].includes(evt.kind)) {
+                loadEnvelopes();
+                loadInbox();
+                loadSessions();
+                if (refreshOpenThread && openEnvelopeId && (!evt.envelope_id || evt.envelope_id === openEnvelopeId)) {
+                  refreshOpenThread();
+                }
+                // CON-006: pulse live-traffic edges through the spine path
+                // Try ForceTopology.pulsePath first (creates traffic edges)
+                if (typeof ForceTopology !== 'undefined' && ForceTopology.pulsePath) {
+                  ForceTopology.pulsePath(['kitt', 'hermes', 'forge']);
+                } else if (typeof Constellation !== 'undefined' && Constellation.pulseEdge) {
+                  // Fallback: pulse each spine segment
+                  Constellation.pulseEdge('kitt', 'hermes');
+                  Constellation.pulseEdge('hermes', 'forge');
+                }
+              }
+              // Agent snapshot from Forge/other reporter — refresh constellation.
+              if (evt.kind === 'agents_snapshot') {
+                loadAgents();
+              }
+            } catch(_) {}
+          }
+        }
+        read();
+      }).catch(() => { setSseStatus(false); setTimeout(connectSSE, 3000); });
+    }
+    read();
+  }).catch(() => {
+    setSseStatus(false);
+    setTimeout(connectSSE, 5000);
+  });
+  evtSource = { close: () => ctrl.abort() };
+}
+
+function setSseStatus(connected) {
+  const el = document.getElementById('sse-status');
+  el.innerHTML = connected
+    ? '<span class="dot dot-connected"></span>Live'
+    : '<span class="dot dot-disconnected"></span>Reconnecting…';
+  const mini = document.getElementById('sse-status-mini');
+  if (mini) {
+    mini.firstElementChild.className = 'dot ' + (connected ? 'dot-connected' : 'dot-disconnected');
+    document.getElementById('sse-label').textContent = connected ? 'live' : 'reconnecting';
+  }
+}
+
+function prependEvent(evt) {
+  const stream = document.getElementById('activity-stream');
+  // Clear empty state if present
+  const empty = stream.querySelector('.empty');
+  if (empty) empty.remove();
+  stream.insertBefore(renderEvent(evt), stream.firstChild);
+  while (stream.children.length > 200) stream.removeChild(stream.lastChild);
+  // Update "last activity" timestamp
+  lastActivityTime = Date.now();
+  updateActivityEmptyState();
+}
+
+let lastActivityTime = Date.now();
+let activityStaleTimer = null;
+
+function updateActivityEmptyState() {
+  // Check if we should show "no recent activity" message
+  const stream = document.getElementById('activity-stream');
+  if (!stream || stream.children.length === 0) return;
+  const timeSinceActivity = Date.now() - lastActivityTime;
+  // After 5 minutes of no new events, show subtle indicator
+  if (timeSinceActivity > 5 * 60 * 1000) {
+    const existing = stream.querySelector('.activity-stale');
+    if (!existing) {
+      const stale = document.createElement('div');
+      stale.className = 'activity-stale';
+      stale.style.cssText = 'text-align:center;padding:1rem;color:var(--muted);font-size:0.8rem;';
+      stale.textContent = 'No recent activity';
+      stream.appendChild(stale);
+    }
+  } else {
+    // Remove stale indicator if activity resumed
+    const existing = stream.querySelector('.activity-stale');
+    if (existing) existing.remove();
+  }
+}
+
+function startActivityStaleTimer() {
+  if (activityStaleTimer) clearInterval(activityStaleTimer);
+  // Check for stale state every 30 seconds
+  activityStaleTimer = setInterval(updateActivityEmptyState, 30000);
+}
+
+function stopActivityStaleTimer() {
+  if (activityStaleTimer) {
+    clearInterval(activityStaleTimer);
+    activityStaleTimer = null;
+  }
+}
+
+/* Map event kind → icon symbol id */
+function getEventIconId(kind) {
+  var map = {
+    'tool_use': 'icon-forge',
+    'status': 'icon-hermes',
+    'decision': 'icon-claude',
+    'heartbeat': 'icon-unknown',
+  };
+  return map[kind] || 'icon-generic';
+}
+
+function renderEvent(evt) {
+  const div = document.createElement('div');
+  div.className = 'event';
+  const kindClass = ['tool_use','status','decision','heartbeat'].includes(evt.kind) ? 'kind-' + evt.kind : 'kind-default';
+  const ts = evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : '';
+  const keyTag = evt.api_key ? evt.api_key.slice(0, 10) + '…' : '';
+  const iconId = getEventIconId(evt.kind);
+  const iconHtml = `<span class="event-icon"><svg><use href="#${iconId}"></use></svg></span>`;
+  div.innerHTML = `${iconHtml}<span class="kind ${kindClass}">${esc(evt.kind || '?')}</span>
+    <span class="summary">${esc(evt.summary || '')}</span>
+    ${keyTag ? '<span class="key-tag">' + esc(keyTag) + '</span>' : ''}
+    <span class="time">${esc(ts)}</span>`;
+  return div;
+}
+
+function loadRecentActivity() {
+  apiFetch('/activity').then(events => {
+    if (!Array.isArray(events)) return;
+    const stream = document.getElementById('activity-stream');
+    stream.innerHTML = '';
+    if (events.length === 0) {
+      stream.innerHTML = '<div class="empty">No activity yet</div>';
+      return;
+    }
+    events.forEach(evt => stream.appendChild(renderEvent(evt)));
+    // Update last activity time from most recent event
+    if (events.length > 0 && events[0].timestamp) {
+      lastActivityTime = new Date(events[0].timestamp).getTime();
+    } else {
+      lastActivityTime = Date.now();
+    }
+  });
+}
+
+/* --- Inbox --- */
+function loadInbox() {
+  apiFetch('/notifications').then(notifications => {
+    inboxCache = Array.isArray(notifications) ? notifications : [];
+    document.getElementById('badge-inbox').textContent = inboxCache.length;
+    renderInbox();
+  });
+}
+
+function renderInbox() {
+  const list = document.getElementById('inbox-list');
+  const q = (document.getElementById('inbox-filter').value || '').toLowerCase();
+  const items = inboxCache.filter(n => inboxMatchesFilter(n, q));
+  document.getElementById('inbox-count').textContent = items.length + ' of ' + inboxCache.length;
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty">Inbox is clear</div>';
+    return;
+  }
+  list.innerHTML = '';
+  items.forEach(n => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    const statusClass = 'status-' + safeStatusState(n.status || 'created');
+    div.innerHTML = `<div class="row">
+      <span class="title">${esc(n.envelope_id || 'notification #' + n.id)}</span>
+      <span class="status-badge ${statusClass}">${esc(n.status || 'created')}</span>
+    </div>
+    <div class="meta-row">
+      <span class="id">#${esc(n.id)}</span>
+      ${n.created_at ? `<span>${esc(fmtTime(n.created_at))}</span>` : ''}
+      ${n.note ? `<span>${esc(n.note)}</span>` : ''}
+      ${n.proof_summary ? `<span>${esc(n.proof_summary)}</span>` : ''}
+    </div>`;
+    // CON-012: clicking a notification opens the envelope detail panel.
+    // Do not auto-ack on click.
+    if (n.envelope_id) {
+      let fetchingEnvelope = false;
+      div.setAttribute('role', 'button');
+      div.tabIndex = 0;
+      const openNotificationEnvelope = function() {
+        const cached = envelopesCache.find(function(e) { return e.id === n.envelope_id; });
+        if (cached) {
+          const previous = div.querySelector('.inbox-fetch-error');
+          if (previous) previous.remove();
+          showEnvelopeDetail(cached);
+        } else {
+          if (fetchingEnvelope) return;
+          fetchingEnvelope = true;
+          apiFetchRaw('/envelopes/' + encodeURIComponent(n.envelope_id)).then(function(result) {
+            const previous = div.querySelector('.inbox-fetch-error');
+            if (previous) previous.remove();
+            if (result.ok && result.data && result.data.id) {
+              showEnvelopeDetail(result.data);
+              return;
+            }
+            const status = result.status ? 'HTTP ' + result.status : 'network error';
+            console.error('Failed to load notification envelope:', n.envelope_id, result.status);
+            const errEl = document.createElement('div');
+            errEl.className = 'empty inbox-fetch-error';
+            errEl.textContent = 'Failed to load envelope (' + status + ')';
+            div.appendChild(errEl);
+          }).finally(function() {
+            fetchingEnvelope = false;
+          });
+        }
+      };
+      div.onclick = openNotificationEnvelope;
+      div.onkeydown = function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openNotificationEnvelope();
+        }
+      };
+    }
+    list.appendChild(div);
+  });
+}
+
+function inboxMatchesFilter(n, query) {
+  if (!query) return true;
+  const hay = [n.envelope_id, n.status, n.note, n.proof_summary].filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(query);
+}
+
+function ackVisibleInbox() {
+  const q = (document.getElementById('inbox-filter').value || '').toLowerCase();
+  const ids = inboxCache.filter(n => inboxMatchesFilter(n, q)).map(n => n.id);
+  if (ids.length === 0) return;
+  fetch(API_BASE + '/notifications/ack', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Hermes-Key': apiKey },
+    body: JSON.stringify({ ids: ids })
+  }).then(r => {
+    if (r.status === 401) { logout(); return; }
+    if (r.ok) loadInbox();
+  });
+}
+
+/* --- Envelopes --- */
+function loadEnvelopes() {
+  apiFetch('/envelopes').then(envelopes => {
+    envelopesCache = Array.isArray(envelopes) ? envelopes : [];
+    document.getElementById('badge-envelopes').textContent = envelopesCache.length;
+    updateEnvelopeBadges(envelopesCache);
+    renderEnvelopes();
+  });
+}
+
+function updateEnvelopeBadges(envelopes) {
+  if (typeof Filters !== 'undefined' && Filters.countByStatus) {
+    var counts = Filters.countByStatus(envelopes);
+    document.getElementById('badge-all').textContent = counts.all;
+    document.getElementById('badge-active').textContent = counts.active;
+    document.getElementById('badge-done').textContent = counts.done;
+    document.getElementById('badge-blocked').textContent = counts.blocked;
+    document.getElementById('badge-failed').textContent = counts.failed;
+  }
+}
+
+function renderEnvelopes() {
+  const list = document.getElementById('envelope-list');
+  const q = (document.getElementById('env-filter').value || '').toLowerCase();
+  const items = envelopesCache.filter(env => {
+    // Use chip filter (activeEnvFilter)
+    if (typeof Filters !== 'undefined' && !Filters.envelopePassesFilter(env, window.currentEnvFilter)) {
+      return false;
+    }
+    if (!q) return true;
+    const hay = [env.id, env.task_title, env.title, env.project, env.target_executor, env.target_node].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  }).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  document.getElementById('env-count').textContent = items.length + ' of ' + envelopesCache.length;
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty">No envelopes match</div>';
+    return;
+  }
+  list.innerHTML = '';
+  items.forEach(env => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.onclick = () => showEnvelopeDetail(env);
+    const statusClass = 'status-' + safeStatusState(env.status || 'created');
+    div.innerHTML = `<div class="row">
+      <span class="title">${esc(env.task_title || env.title || env.id)}</span>
+      <span class="status-badge ${statusClass}">${esc(env.status || 'created')}</span>
+    </div>
+    <div class="meta-row">
+      <span class="id">${esc(env.id)}</span>
+      ${env.project ? `<span><span class="label">project:</span> ${esc(basename(env.project))}</span>` : ''}
+      ${env.target_executor ? `<span><span class="label">exec:</span> ${esc(env.target_executor)}</span>` : ''}
+      ${env.target_node ? `<span><span class="label">node:</span> ${esc(env.target_node)}</span>` : ''}
+    </div>`;
+    list.appendChild(div);
+  });
+}
+
+/* --- Sessions --- */
+function loadSessions(onSuccess) {
+  apiFetch('/sessions').then(sessions => {
+    sessionsCache = Array.isArray(sessions) ? sessions : [];
+    document.getElementById('badge-sessions').textContent = sessionsCache.length;
+    renderSessions();
+    if (onSuccess) onSuccess();
+  }).catch(function() {
+    if (onSuccess) onSuccess(); // Still call callback even on error
+  });
+}
+
+function renderSessions() {
+  const list = document.getElementById('session-list');
+  const q = (document.getElementById('sess-filter').value || '').toLowerCase();
+  const items = sessionsCache.filter(s => {
+    if (!q) return true;
+    const hay = [s.id, s.title, s.project].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+  document.getElementById('sess-count').textContent = items.length + ' of ' + sessionsCache.length;
+
+  if (items.length === 0) {
+    list.innerHTML = '<div class="empty">No sessions yet. When Claude/OpenCode post to a lane, they appear here.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  items.forEach(sess => {
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.onclick = () => showSessionDetail(sess);
+    const statusClass = 'status-' + safeStatusState(sess.status || 'active');
+    div.innerHTML = `<div class="row">
+      <span class="title">${esc(sess.title || sess.id)}</span>
+      <span class="status-badge ${statusClass}">${esc(sess.status || 'active')}</span>
+    </div>
+    <div class="meta-row">
+      <span class="id">${esc(sess.id)}</span>
+      ${sess.project ? `<span><span class="label">project:</span> ${esc(basename(sess.project))}</span>` : ''}
+      ${sess.created_at ? `<span>${esc(fmtTime(sess.created_at))}</span>` : ''}
+    </div>`;
+    list.appendChild(div);
+  });
+}
+
+/* --- Detail panels --- */
+function showEnvelopeDetail(env) {
+  resetEnvelopeDetailState();
+  document.getElementById('detail-title').textContent = env.task_title || env.title || env.id;
+  document.getElementById('detail-subtitle').textContent = env.id;
+
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '';
+
+  const kv = document.createElement('dl');
+  kv.className = 'kv';
+  const rows = [
+    ['status', env.status],
+    ['project', env.project ? basename(env.project) : env.project],
+    ['node', env.target_node],
+    ['executor', env.target_executor],
+    ['executor_session', env.executor_session_id],
+    ['created', fmtTime(env.created_at)],
+    ['delivered', env.delivery && env.delivery.delivered ? 'yes' : 'no'],
+  ];
+  rows.forEach(([k, v]) => {
+    if (!v && v !== false) return;
+    kv.innerHTML += `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`;
+  });
+  body.appendChild(kv);
+
+  if (env.task_goal) {
+    const h = document.createElement('div');
+    h.className = 'section-h';
+    h.textContent = 'Goal';
+    body.appendChild(h);
+    const pre = document.createElement('pre');
+    pre.textContent = env.task_goal;
+    body.appendChild(pre);
+  }
+
+  // SECTION: live thread fetch (CON-011)
+  const threadH = document.createElement('div');
+  threadH.className = 'section-h';
+  threadH.textContent = 'Thread';
+  body.appendChild(threadH);
+
+  const threadContainer = document.createElement('div');
+  body.appendChild(threadContainer);
+  threadContainer.innerHTML = '<div class="empty">Loading\u2026</div>';
+  let threadRenderSignature = '';
+
+  // SECTION: thread fetch and render (shared by initial load and post-send refresh)
+  function fetchAndRenderThread() {
+    return apiFetchRaw('/envelopes/' + encodeURIComponent(env.id) + '/thread').then(function(result) {
+      if (!result.ok) {
+        threadRenderSignature = '';
+        threadContainer.innerHTML = '';
+        threadH.textContent = 'Thread';
+        const hint = result.status === 401 ? ' (unauthorized)' : '';
+        const errEl = document.createElement('div');
+        errEl.className = 'empty';
+        errEl.textContent = 'Failed to load thread (HTTP ' + result.status + hint + ')';
+        threadContainer.appendChild(errEl);
+        return [];
+      }
+      let messages = Array.isArray(result.data) ? result.data : [];
+      // Normalize: envelope.Message serializes timestamp as "at"; renderMessage expects "created_at".
+      messages = messages.map(function(m) {
+        if (!m.created_at && m.at) { return Object.assign({}, m, { created_at: m.at }); }
+        return m;
+      });
+      const nextSignature = messages.length + ':' + messages.map(function(m) { return m.id || ''; }).join('|');
+      if (nextSignature === threadRenderSignature) {
+        return messages;
+      }
+      threadRenderSignature = nextSignature;
+      threadContainer.innerHTML = '';
+      if (messages.length === 0) {
+        threadContainer.innerHTML = '<div class="empty">No messages yet</div>';
+        return [];
+      }
+      threadH.textContent = 'Thread (' + messages.length + ')';
+      renderSessionMessages(threadContainer, messages);
+      return messages;
+    });
+  }
+
+  // Track latest message id for reply_to. Send stays disabled until the initial
+  // thread fetch resolves, so a reply cannot race ahead without reply_to.
+  let latestMessageId = '';
+  let threadLoaded = false;
+  let composeSending = false;
+  const replyRequiresMessage = 'Reply requires an existing thread message.';
+
+  // SECTION: compose area (CON-012)
+  const composeH = document.createElement('div');
+  composeH.className = 'section-h';
+  composeH.textContent = 'Compose';
+  body.appendChild(composeH);
+
+  const composeDiv = document.createElement('div');
+  composeDiv.className = 'compose-wrap';
+
+  const composeRow = document.createElement('div');
+  composeRow.className = 'compose-row';
+
+  const composeTextarea = document.createElement('textarea');
+  composeTextarea.id = 'compose-text';
+  composeTextarea.className = 'compose-textarea';
+  composeTextarea.placeholder = 'Type a message…';
+  composeTextarea.rows = 3;
+
+  const composeControls = document.createElement('div');
+  composeControls.className = 'compose-controls';
+
+  const composeKind = document.createElement('select');
+  composeKind.id = 'compose-kind';
+  composeKind.className = 'compose-kind';
+  [['steer', 'Steer'], ['reply', 'Reply'], ['decision', 'Decision']].forEach(function(pair) {
+    const opt = document.createElement('option');
+    opt.value = pair[0];
+    opt.textContent = pair[1];
+    composeKind.appendChild(opt);
+  });
+
+  const composeSendBtn = document.createElement('button');
+  composeSendBtn.id = 'compose-send';
+  composeSendBtn.className = 'compose-send';
+  composeSendBtn.textContent = 'Send';
+  // Disabled until initial thread fetch resolves (race-condition guard).
+  composeSendBtn.disabled = true;
+
+  composeControls.appendChild(composeKind);
+  composeControls.appendChild(composeSendBtn);
+  composeRow.appendChild(composeTextarea);
+  composeRow.appendChild(composeControls);
+  composeDiv.appendChild(composeRow);
+
+  const composeError = document.createElement('div');
+  composeError.id = 'compose-error';
+  composeError.className = 'compose-error';
+  composeDiv.appendChild(composeError);
+
+  body.appendChild(composeDiv);
+
+  function showComposeError(message) {
+    composeError.textContent = message;
+    composeError.classList.add('is-visible');
+  }
+
+  function hideComposeError() {
+    composeError.textContent = '';
+    composeError.classList.remove('is-visible');
+  }
+
+  function updateComposeState() {
+    const needsReplyTo = composeKind.value === 'reply' && !latestMessageId;
+    composeSendBtn.disabled = composeSending || !threadLoaded || needsReplyTo;
+    composeTextarea.disabled = composeSending;
+    composeKind.disabled = composeSending;
+    if (needsReplyTo) {
+      showComposeError(replyRequiresMessage);
+    } else if (composeError.textContent === replyRequiresMessage) {
+      hideComposeError();
+    }
+  }
+
+  function refreshThreadState(fallbackMessageId) {
+    return fetchAndRenderThread().then(function(msgs) {
+      latestMessageId = (msgs && msgs.length > 0) ? (msgs[msgs.length - 1].id || '') : (fallbackMessageId || '');
+      return msgs;
+    }).finally(function() {
+      threadLoaded = true;
+      updateComposeState();
+    });
+  }
+
+  composeKind.addEventListener('change', updateComposeState);
+
+  composeSendBtn.addEventListener('click', function() {
+    const text = composeTextarea.value.trim();
+    if (!text) return;
+    const kind = composeKind.value;
+    if (kind === 'reply' && !latestMessageId) {
+      showComposeError(replyRequiresMessage);
+      updateComposeState();
+      return;
+    }
+    const replyTo = (kind === 'reply' && latestMessageId) ? latestMessageId : undefined;
+    const payload = { from: 'kitt', kind: kind, text: text };
+    if (replyTo) payload.reply_to = replyTo;
+
+    hideComposeError();
+    composeSending = true;
+    composeSendBtn.disabled = true;
+    updateComposeState();
+
+    apiPostRaw('/envelopes/' + encodeURIComponent(env.id) + '/thread', payload).then(function(result) {
+      if (!result.ok) {
+        if (result.status === 0) {
+          showComposeError('Send failed (network error)');
+          return;
+        }
+        const d = result.data || {};
+        const errMsg = d.detail || d.error || 'unexpected error';
+        showComposeError('Send failed (HTTP ' + result.status + '): ' + errMsg);
+        return;
+      }
+      const postedMessageId = result.data && typeof result.data.id === 'string' ? result.data.id : '';
+      if (composeTextarea.value.trim() === text) {
+        composeTextarea.value = '';
+      }
+      // POST /thread returns the created message; keep it if the refresh is empty/failed.
+      return refreshThreadState(postedMessageId);
+    }).catch(function() {
+      showComposeError('Send failed (network error)');
+    }).finally(function() {
+      composeSending = false;
+      updateComposeState();
+    });
+  });
+
+  refreshThreadState();
+
+  if (env.history && env.history.length) {
+    const h = document.createElement('div');
+    h.className = 'section-h';
+    h.textContent = 'History';
+    body.appendChild(h);
+    const pre = document.createElement('pre');
+    pre.textContent = env.history.join('\n');
+    body.appendChild(pre);
+  }
+
+  const h = document.createElement('div');
+  h.className = 'section-h';
+  h.textContent = 'Raw JSON';
+  body.appendChild(h);
+  const pre = document.createElement('pre');
+  pre.textContent = JSON.stringify(env, null, 2);
+  body.appendChild(pre);
+
+  openDetail();
+  openEnvelopeId = env.id;
+  refreshOpenThread = refreshThreadState;
+  clearInterval(threadPollInterval);
+  threadPollInterval = setInterval(refreshThreadState, 15000);
+}
+
+function showSessionDetail(sess) {
+  resetEnvelopeDetailState();
+  document.getElementById('detail-title').textContent = sess.title || sess.id;
+  document.getElementById('detail-subtitle').textContent = sess.id;
+
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '';
+
+  const kv = document.createElement('dl');
+  kv.className = 'kv';
+  [
+    ['status', sess.status],
+    ['project', sess.project ? basename(sess.project) : sess.project],
+    ['created', fmtTime(sess.created_at)],
+  ].forEach(([k, v]) => {
+    if (!v) return;
+    kv.innerHTML += `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`;
+  });
+  body.appendChild(kv);
+
+  const h = document.createElement('div');
+  h.className = 'section-h';
+  h.textContent = 'Messages';
+  body.appendChild(h);
+
+  const msgContainer = document.createElement('div');
+  body.appendChild(msgContainer);
+  msgContainer.innerHTML = '<div class="empty">Loading…</div>';
+
+  apiFetch('/sessions/' + encodeURIComponent(sess.id) + '/messages').then(messages => {
+    msgContainer.innerHTML = '';
+    if (!Array.isArray(messages) || messages.length === 0) {
+      msgContainer.innerHTML = '<div class="empty">No messages yet</div>';
+      return;
+    }
+    renderSessionMessages(msgContainer, messages);
+  });
+
+  openDetail();
+}
+
+/** Render session messages as a shallow thread using reply_to relations. */
+function renderSessionMessages(container, messages) {
+  // Build id → depth map by walking reply_to chains.
+  const byId = new Map(messages.map(m => [m.id, m]));
+  const depth = new Map();
+  function depthOf(m, seen) {
+    if (depth.has(m.id)) return depth.get(m.id);
+    if (!m.reply_to || !byId.has(m.reply_to) || seen.has(m.id)) {
+      depth.set(m.id, 0);
+      return 0;
+    }
+    seen.add(m.id);
+    const d = Math.min(3, depthOf(byId.get(m.reply_to), seen) + 1);
+    depth.set(m.id, d);
+    return d;
+  }
+  messages.forEach(m => depthOf(m, new Set()));
+
+  messages.forEach(m => {
+    container.appendChild(renderMessage(m, depth.get(m.id) || 0));
+  });
+}
+
+function renderMessage(m, indent) {
+  const div = document.createElement('div');
+  div.className = 'msg' + (indent ? ' indent-' + indent : '');
+  const kindCls = 'msg-kind-' + (m.kind || 'reply');
+  div.innerHTML = `<div class="head">
+      <span class="from">${esc(m.from || '?')}</span>
+      <span class="kind-tag ${kindCls}">${esc(m.kind || '?')}</span>
+      <span>${esc(fmtTime(m.created_at))}</span>
+      ${m.reply_to ? '<span title="reply_to" class="mono">↩ ' + esc(String(m.reply_to).slice(0, 8)) + '</span>' : ''}
+    </div>
+    <div class="text">${esc(m.text || '')}</div>`;
+  return div;
+}
+
+function openDetail() {
+  document.getElementById('detail-overlay').style.display = 'block';
+  document.getElementById('detail-panel').style.display = 'block';
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').style.display = 'none';
+  document.getElementById('detail-panel').style.display = 'none';
+  resetEnvelopeDetailState();
+}
+
+function resetEnvelopeDetailState() {
+  openEnvelopeId = '';
+  refreshOpenThread = null;
+  clearInterval(threadPollInterval);
+  threadPollInterval = null;
+}
+
+/* --- Agents / Constellation --- */
+function loadAgents() {
+  Promise.all([
+    apiFetch('/agents'),
+    apiFetch('/registry/projects'),
+  ]).then(([agents, projects]) => {
+    agentsCache = Array.isArray(agents) ? agents : [];
+    document.getElementById('badge-agents').textContent = agentsCache.length;
+    updateLifecycleCounts(agentsCache);
+    // Use ForceTopology if available, fall back to radial Constellation
+    if (typeof ForceTopology !== 'undefined' && ForceTopology.render) {
+      ForceTopology.render(agentsCache, projects || []);
+    } else if (typeof Constellation !== 'undefined' && Constellation.render) {
+      Constellation.render(agentsCache);
+    }
+  }).catch(() => {
+    // Fallback to agents-only
+    apiFetch('/agents').then(agents => {
+      agentsCache = Array.isArray(agents) ? agents : [];
+      if (typeof ForceTopology !== 'undefined' && ForceTopology.render) {
+        ForceTopology.render(agentsCache, []);
+      } else if (typeof Constellation !== 'undefined' && Constellation.render) {
+        Constellation.render(agentsCache);
+      }
+    });
+  });
+}
+
+let projectsCache = [];
+function loadProjects() {
+  return apiFetch('/registry/projects').then(projects => {
+    projectsCache = Array.isArray(projects) ? projects : [];
+    return projectsCache;
+  });
+}
+
+/* ── Lifecycle filters (Active/Idle/Old) ── */
+function toggleLifecycleFilter(key) {
+  if (typeof Filters === 'undefined') return;
+  var filters = Filters.toggleFilter(key);
+  updateLifecycleChips(filters);
+  if (typeof ForceTopology !== 'undefined' && ForceTopology.refreshFilters) {
+    ForceTopology.refreshFilters();
+  }
+}
+
+function updateLifecycleChips(filters) {
+  if (!filters) {
+    filters = typeof Filters !== 'undefined' ? Filters.loadFilters() : { active: true, idle: true, old: true };
+  }
+  ['active', 'idle', 'old'].forEach(function(key) {
+    var chip = document.querySelector('.chip[data-filter="' + key + '"]');
+    if (chip) {
+      chip.classList.toggle('active', filters[key]);
+    }
+  });
+}
+
+function updateLifecycleCounts(agents) {
+  if (!Array.isArray(agents)) return;
+  var counts = { active: 0, idle: 0, old: 0 };
+  agents.forEach(function(a) {
+    var state = a.state || 'idle';
+    if (state === 'active') counts.active++;
+    else if (state === 'idle') counts.idle++;
+    else counts.old++;
+  });
+  ['active', 'idle', 'old'].forEach(function(key) {
+    var el = document.getElementById('count-' + key);
+    if (el) el.textContent = counts[key];
+  });
+}
+
+/* ── Envelope filter (All/Active/Done/Blocked/Failed) ── */
+
+function setEnvFilter(value) {
+  window.currentEnvFilter = value;
+  updateEnvChips(value);
+  renderEnvelopes();
+}
+
+function updateEnvChips(activeValue) {
+  document.querySelectorAll('.env-chip').forEach(function(chip) {
+    chip.classList.toggle('active', chip.dataset.status === activeValue);
+  });
+}
+
+function initEnvFilter() {
+  // Always default to 'active' — no localStorage persistence per CON-010
+  window.currentEnvFilter = 'active';
+  updateEnvChips('active');
+}
+
+/* ── Session auto-refresh ── */
+let sessionsPollInterval = null;
+
+function startSessionsPoll() {
+  if (sessionsPollInterval) clearInterval(sessionsPollInterval);
+  sessionsPollInterval = setInterval(function() {
+    // Poll sessions and only show green indicator on success
+    apiFetch('/sessions').then(function(sessions) {
+      sessionsCache = Array.isArray(sessions) ? sessions : [];
+      document.getElementById('badge-sessions').textContent = sessionsCache.length;
+      renderSessions();
+      // Success - show green indicator briefly
+      var dot = document.getElementById('sess-refresh-dot');
+      if (dot) {
+        dot.classList.add('live');
+        setTimeout(function() { dot.classList.remove('live'); }, 1000);
+      }
+    }).catch(function() {
+      // Error - indicator stays dim, no green flash
+    });
+  }, 10000);
+}
+
+function stopSessionsPoll() {
+  if (sessionsPollInterval) {
+    clearInterval(sessionsPollInterval);
+    sessionsPollInterval = null;
+  }
+}
+
+
+
+
+
+
+
+
+function showAgentDetail(a) {
+  resetEnvelopeDetailState();
+  apiFetch('/agents/' + encodeURIComponent(a.id)).then(function(detail) {
+    if (detail && detail.id) renderAgentDetail(detail);
+    else renderAgentDetail(a);
+  });
+}
+
+function renderAgentDetail(a) {
+  document.getElementById('detail-title').textContent = a.title || (a.executor + ' #' + a.pid);
+  document.getElementById('detail-subtitle').textContent = a.id;
+  const body = document.getElementById('detail-body');
+  body.innerHTML = '';
+
+  const kv = document.createElement('dl');
+  kv.className = 'kv';
+  [
+    ['host', a.host],
+    ['executor', a.executor],
+    ['state', a.state],
+    ['project', a.project ? basename(a.project) : a.project],
+    ['cwd', a.cwd],
+    ['session', a.session_id],
+    ['parent', a.parent_kind],
+    ['pid', a.pid],
+    ['started', fmtTime(a.started_at)],
+    ['last seen', fmtTime(a.last_seen_at)],
+    ['cpu', typeof a.cpu_percent === 'number' ? a.cpu_percent.toFixed(1) + '%' : ''],
+    ['mem', typeof a.mem_percent === 'number' ? a.mem_percent.toFixed(1) + '%' : ''],
+    ['reported by', a.reported_by],
+  ].forEach(([k, v]) => {
+    if (v === undefined || v === null || v === '') return;
+    kv.innerHTML += `<dt>${esc(k)}</dt><dd>${esc(String(v))}</dd>`;
+  });
+  body.appendChild(kv);
+
+  // CON-003: Logs section — lazy-fetched based on agent kind.
+  const logsH = document.createElement('div');
+  logsH.className = 'section-h';
+  logsH.textContent = 'Logs';
+  body.appendChild(logsH);
+
+  const logsDiv = document.createElement('div');
+  logsDiv.id = 'agent-logs';
+  logsDiv.innerHTML = '<div class="empty">Loading…</div>';
+  body.appendChild(logsDiv);
+
+  // Determine log source based on agent properties.
+  // KITT anchor: host === 'vps-kitt' or explicit 'kitt' executor.
+  // Forge-managed: parent_kind === 'forge' and has session_id.
+  // User-spawned: everything else — logs not accessible.
+  const isKitt = (a.host === 'vps-kitt' || a.executor === 'kitt');
+  const isForgeManaged = (a.parent_kind === 'forge' && a.session_id);
+
+  if (isKitt) {
+    fetchLogs('/kitt/logs?tail=20', logsDiv);
+  } else if (isForgeManaged) {
+    fetchLogs('/sessions/' + encodeURIComponent(a.session_id) + '/raw-tail?max_lines=20', logsDiv);
+  } else {
+    logsDiv.innerHTML = '<div class="empty">user session — logs not captured</div>';
+  }
+
+  // Slice Aggregation 1: Show group members section for grouped nodes
+  if (a._isGroup && a._members && a._members.length > 0) {
+    const groupH = document.createElement('div');
+    groupH.className = 'section-h';
+    groupH.textContent = 'Group Members (' + a._groupSize + ')';
+    body.appendChild(groupH);
+
+    const membersDiv = document.createElement('div');
+    membersDiv.className = 'group-members';
+    a._members.forEach(function(member, idx) {
+      const memberRow = document.createElement('div');
+      memberRow.className = 'card';
+      memberRow.style.cssText = 'margin-bottom: 0.3rem; padding: 0.5rem 0.7rem;';
+      // Build meaningful identifier: pid/session/state/project if available
+      var memberId = member.pid ? 'pid:' + member.pid : member.id || '?';
+      var memberSession = member.session_id ? 'session:' + String(member.session_id).slice(0, 12) : '';
+      var memberState = safeStatusState(member.state);
+      var memberProject = member.project ? basename(member.project) : '';
+      var parts = [memberId, memberSession, memberState].filter(Boolean);
+      const memberTop = document.createElement('div');
+      memberTop.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+      const memberText = document.createElement('span');
+      memberText.style.fontSize = '0.82rem';
+      memberText.textContent = parts.join(' \u00B7 ');
+      const memberBadge = document.createElement('span');
+      memberBadge.className = 'status-badge status-' + memberState;
+      memberBadge.style.fontSize = '0.65rem';
+      memberBadge.textContent = memberState;
+      memberTop.appendChild(memberText);
+      memberTop.appendChild(memberBadge);
+      memberRow.appendChild(memberTop);
+      if (memberProject) {
+        const projectRow = document.createElement('div');
+        projectRow.style.cssText = 'font-size:0.75rem;color:var(--muted);margin-top:0.2rem;';
+        projectRow.textContent = 'project: ' + memberProject;
+        memberRow.appendChild(projectRow);
+      }
+      membersDiv.appendChild(memberRow);
+    });
+    body.appendChild(membersDiv);
+  }
+
+  const h = document.createElement('div');
+  h.className = 'section-h';
+  h.textContent = 'Raw';
+  body.appendChild(h);
+  const pre = document.createElement('pre');
+  pre.textContent = JSON.stringify(a, null, 2);
+  body.appendChild(pre);
+
+  openDetail();
+}
+
+function fetchLogs(url, container) {
+  apiFetchRaw(url).then(function(result) {
+    if (result.data && result.data.status === 'not_available') {
+      container.innerHTML = '<div class="empty">' + esc(result.data.detail || 'raw tail not available') + '</div>';
+      return;
+    }
+    if (!result.ok) {
+      container.innerHTML = '<div class="empty">logs unavailable (HTTP ' + result.status + ')</div>';
+      return;
+    }
+    var data = result.data;
+    var lines = null;
+
+    // Normalise response shape:
+    // - KITT /kitt/logs  → {lines: string[]}
+    // - Hermes /sessions/{id}/raw-tail → {lines: string[]} or {status:"not_available"}
+    // Note: {status:"not_available"} with ok=true is already handled above (line ~1127).
+    if (Array.isArray(data.lines)) {
+      lines = data.lines;
+    } else if (typeof data.output === 'string' && data.output.length > 0) {
+      lines = data.output.split('\n');
+      if (lines.length > 0 && lines[lines.length - 1] === '') {
+        lines.pop();
+      }
+    }
+
+    if (!lines || lines.length === 0) {
+      container.innerHTML = '<div class="empty">no logs yet</div>';
+      return;
+    }
+    container.innerHTML = '<pre class="mono" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.8rem;font-size:0.78rem;overflow-x:auto;white-space:pre-wrap;word-break:break-word;">' +
+      esc(lines.join('\n')) + '</pre>';
+  }).catch(function() {
+    container.innerHTML = '<div class="empty">logs unavailable</div>';
+  });
+}
+
+// apiFetchRaw returns {ok, status, data} without throwing.
+function apiFetchRaw(path) {
+  return fetch(API_BASE + path, { headers: { 'X-Hermes-Key': apiKey } })
+    .then(function(r) {
+      if (r.status === 401) { logout(); return {ok: false, status: 401, data: null}; }
+      if (r.status === 404) return {ok: false, status: 404, data: null};
+      return r.json().then(function(data) { return {ok: r.ok, status: r.status, data: data}; });
+    }).catch(function(err) { return {ok: false, status: 0, data: null}; });
+}
+
+// apiPostRaw sends a JSON POST through the same auth/header path as apiFetchRaw.
+// Returns {ok, status, data} without throwing.
+function apiPostRaw(path, body) {
+  return fetch(API_BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Hermes-Key': apiKey },
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (r.status === 401) { logout(); return {ok: false, status: 401, data: null}; }
+    return r.json().catch(function() { return {}; }).then(function(data) {
+      return {ok: r.ok, status: r.status, data: data};
+    });
+  }).catch(function() { return {ok: false, status: 0, data: null}; });
+}
+
+function fmtUptime(started) {
+  if (!started) return '';
+  const ms = Date.now() - new Date(started).getTime();
+  if (isNaN(ms) || ms < 0) return '';
+  const s = Math.floor(ms / 1000);
+  if (s < 60) return s + 's';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + 'm';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ' + (m % 60) + 'm';
+  const d = Math.floor(h / 24);
+  return d + 'd ' + (h % 24) + 'h';
+}
+
+function shortPath(p) {
+  if (!p) return '';
+  if (p.length <= 48) return p;
+  // keep last two path components
+  const parts = p.split('/');
+  if (parts.length <= 3) return p;
+  return '…/' + parts.slice(-2).join('/');
+}
+
+/* --- Tabs --- */
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'envelopes') loadEnvelopes();
+  if (name === 'inbox') loadInbox();
+  if (name === 'sessions') loadSessions();
+  if (name === 'constellation') loadAgents();
+}
+
+/* --- Helpers --- */
+function apiFetch(path) {
+  return fetch(API_BASE + path, { headers: { 'X-Hermes-Key': apiKey } })
+    .then(r => {
+      if (r.status === 401) { logout(); throw new Error('Unauthorized'); }
+      return r.ok ? r.json() : Promise.reject(r.status);
+    })
+    .catch(err => { console.error('API error:', path, err); return []; });
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = (s === undefined || s === null) ? '' : String(s);
+  return d.innerHTML;
+}
+
+function safeStatusState(state) {
+  const allowed = {
+    created: true, delivered: true, read: true, in_progress: true,
+    active: true, idle: true, old: true, paused: true, blocked: true,
+    done: true, closed: true, failed: true, lost: true, awaiting_confirm: true,
+    loop_detected: true, session_message: true, session_decision: true
+  };
+  state = String(state || 'idle');
+  return allowed[state] ? state : 'idle';
+}
+
+function fmtTime(s) {
+  if (!s) return '';
+  const d = new Date(s.replace(' ', 'T').replace(/Z?$/, 'Z'));
+  if (isNaN(d)) return s;
+  return d.toLocaleString();
+}
+
+/* ── Helpers ── */
+function basename(path) {
+  if (!path) return '';
+  const s = String(path);
+  const idx = s.lastIndexOf('/');
+  return idx >= 0 ? s.slice(idx + 1) : s;
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDetail(); });
+</script>
+<!-- D3 v7 for Force Topology (CON-010) -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="filters.js"></script>
+<script src="topology-force.js"></script>
+<script src="constellation.js"></script>
+</body>
+</html>

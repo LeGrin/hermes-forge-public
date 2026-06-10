@@ -1,0 +1,33 @@
+# Build outputs
+bin/
+dist/
+coverage.out
+*.out
+*.test
+hermes/hermes
+hermes/hermes-mcp
+forge/forge
+
+# Runtime state
+*.db
+*.sqlite
+*.sqlite3
+*.log
+logs/
+db/
+
+# Local/private tooling
+.env
+.env.*
+!.env.example
+.serena/
+.scannerwork/
+graphify-out/
+.opencode/
+node_modules/
+.ops-manifest.yaml
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/

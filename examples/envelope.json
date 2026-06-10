@@ -1,0 +1,10 @@
+{
+  "id": "env-demo",
+  "created_by": "automation",
+  "domain": "example",
+  "project": "demo",
+  "target_node": "local-forge",
+  "target_executor": "example-executor",
+  "task_title": "walking skeleton demo",
+  "task_goal": "prove hermes→forge transport end-to-end"
+}

@@ -1,0 +1,184 @@
+/* ═══════════ Constellation SVG Topology — CON-001 ═══════════
+ * Color tokens from tokens.css (CON-002) — single source of truth.
+ * Layout: viewBox 0 0 1200 800, min-height 600px
+ *
+ * NOTE: tokens.css is loaded via <link> in index.html before this sheet.
+ * CSS custom properties cascade, so all tokens are available here.
+ */
+
+/* ── SVG canvas container ── */
+#panel-constellation {
+  position: relative;
+  min-height: 600px;
+  padding: 0.5rem 1rem 1rem;
+}
+
+.constellation-svg {
+  width: 100%;
+  height: auto;
+  min-height: 600px;
+  display: block;
+}
+
+/* ── Force topology specific ── */
+.constellation-svg .node {
+  cursor: pointer;
+}
+
+.constellation-svg .node-label {
+  font-family: Helvetica, Arial, sans-serif;
+  fill: var(--constellation-text);
+  pointer-events: none;
+}
+
+.constellation-svg .link {
+  stroke-linecap: round;
+}
+
+.constellation-svg .spine-line {
+  stroke: var(--constellation-line);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+/* ── SVG base element styles ── */
+.constellation-svg text {
+  user-select: none;
+  pointer-events: none;
+}
+
+.constellation-svg .node-anchor {
+  cursor: pointer;
+}
+
+.constellation-svg .node-circle {
+  transition: filter 0.15s ease;
+}
+
+.constellation-svg .node-anchor:hover .node-circle {
+  filter: url(#nodeGlow);
+}
+
+/* ── Node labels ── */
+.constellation-svg .node-label {
+  font-family: Helvetica, Arial, sans-serif;
+  fill: var(--constellation-text);
+}
+
+.constellation-svg .node-sublabel {
+  font-family: Helvetica, Arial, sans-serif;
+  fill: var(--constellation-text-muted);
+}
+
+/* ── Cluster label (USER SESSIONS) ── */
+.constellation-svg .cluster-label {
+  font-family: Helvetica, Arial, sans-serif;
+  fill: var(--constellation-text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* ── Edge pulse animation (CON-006) ── */
+@keyframes edge-pulse {
+  0% {
+    stroke: var(--constellation-line);
+    stroke-width: 2;
+    opacity: 0.7;
+  }
+  15% {
+    stroke: var(--constellation-pulse, #FFB347);
+    stroke-width: 3.5;
+    opacity: 1;
+    filter: drop-shadow(0 0 4px var(--constellation-pulse-glow, rgba(255,179,71,0.6)));
+  }
+  60% {
+    stroke: var(--constellation-pulse, #FFB347);
+    stroke-width: 3;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 3px var(--constellation-pulse-glow, rgba(255,179,71,0.4)));
+  }
+  100% {
+    stroke: var(--constellation-line);
+    stroke-width: 2;
+    opacity: 0.7;
+    filter: none;
+  }
+}
+
+/* Applied by Constellation.pulseEdge() via JS */
+.constellation-svg .edge-pulse {
+  animation: edge-pulse 2.5s ease-out forwards;
+}
+
+/* ── Forge orbit guide ring ── */
+.constellation-svg .executor-orbit {
+  fill: none;
+  stroke: var(--constellation-line-soft);
+  stroke-width: 1.1;
+  stroke-dasharray: 3 12;
+}
+
+/* ── User-sessions cluster orbit ── */
+.constellation-svg .cluster-orbit {
+  fill: none;
+  stroke: var(--constellation-line-soft);
+  stroke-width: 1;
+  stroke-dasharray: 4 10;
+}
+
+/* ── Edge lines: Forge → agent nodes ── */
+.constellation-svg .forge-agent-edge {
+  stroke: var(--constellation-line);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+/* ── Cluster edge lines ── */
+.constellation-svg .cluster-edge {
+  stroke: var(--constellation-line-soft);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  opacity: 0.6;
+}
+
+/* ── Parent→child edges (CON-004) ── */
+.constellation-svg .parent-edge {
+  stroke: var(--constellation-subagent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.65;
+  stroke-dasharray: 6 4;
+}
+
+/* ── Traffic edges ── */
+.constellation-svg .traffic-edge {
+  stroke: var(--constellation-accent, #5b8def);
+  stroke-width: 2;
+  opacity: 0.8;
+}
+
+/* ── Empty state ── */
+.constellation-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--constellation-text-muted);
+  text-align: center;
+  font-size: 0.9rem;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* ── Agent node hover ── */
+.constellation-svg .agent-node:hover .node-circle {
+  filter: url(#softShadow);
+}
+
+/* ── Anchor hover ── */
+.constellation-svg .anchor-kitt:hover .node-circle,
+.constellation-svg .anchor-hermes:hover .node-circle,
+.constellation-svg .anchor-forge:hover .node-circle {
+  filter: url(#nodeGlow);
+}
