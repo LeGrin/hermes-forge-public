@@ -9,11 +9,24 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/legrin-tech/forge/internal/httpapi"
 )
+
+func prependFakeExecutorToPath(t *testing.T, name string) {
+	t.Helper()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte("#!/bin/sh\ncat >/dev/null\nexit 0\n"), 0o700); err != nil {
+		t.Fatalf("write fake %s executor: %v", name, err)
+	}
+
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
 
 func TestWriteMCPConfig(t *testing.T) {
 	path, err := writeMCPConfig("/usr/local/bin/hermes-mcp", "http://localhost:8080", "", "env-test-123")
@@ -323,6 +336,8 @@ func TestSeedOpencodeAuth_SilentOnMissingSource(t *testing.T) {
 // shared with the operator's interactive TUI (which otherwise dead-
 // locks new `opencode run` spawns on WAL contention).
 func TestBuildLauncher_OpencodeIsolatedDataDir(t *testing.T) {
+	prependFakeExecutorToPath(t, "opencode")
+
 	l := buildLauncher(slog.New(slog.NewTextHandler(io.Discard, nil)), "http://hermes", "dev-key-key", "/bin/true")
 	if l == nil {
 		t.Fatal("expected real launcher")
@@ -358,6 +373,8 @@ func TestBuildLauncher_OpencodeIsolatedDataDir(t *testing.T) {
 // TestBuildLauncher_ClaudeNoDataDirOverride asserts the claude branch
 // does NOT set XDG_DATA_HOME — only opencode needs the isolation.
 func TestBuildLauncher_ClaudeNoDataDirOverride(t *testing.T) {
+	prependFakeExecutorToPath(t, "claude")
+
 	l := buildLauncher(slog.New(slog.NewTextHandler(io.Discard, nil)), "http://hermes", "dev-key-key", "/bin/true")
 	if l == nil {
 		t.Fatal("expected real launcher")
